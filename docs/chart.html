@@ -56,6 +56,7 @@
   <div class="read" id="read">drag to move, pinch or wheel to zoom, tap a candle for its numbers. Amber = deposit or withdrawal, red = a bust</div>
 </section>
 <footer id="footer">loading...</footer>
+<div style="text-align:center;color:#555;font-size:11px;margin-top:4px">chart v4</div>
 
 <script>
 (function () {
@@ -181,7 +182,8 @@
         let guard = 0;
         while (!fits(bx) && guard++ < 40) bx.y += bust ? th + 2 : -(th + 2);
         placed.push(bx);
-        ctx.textAlign = 'center'; ctx.fillText(label, bx.x + tw / 2, bx.y + th - 2);
+        ctx.fillStyle = 'rgba(22,22,22,0.85)'; ctx.fillRect(bx.x, bx.y, bx.w, bx.h); // dark box so the text reads over candles and other labels
+        ctx.fillStyle = bust ? '#ff5b5b' : '#ffc145'; ctx.textAlign = 'center'; ctx.fillText(label, bx.x + tw / 2, bx.y + th - 2);
       }
     });
     // hover
