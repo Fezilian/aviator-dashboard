@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Aviator chart</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="theme-color" content="#161616">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-180.png">
+<style>
+  :root { color-scheme: dark; --bg:#0f0f0f; --card:#1a1a1a; --line:#2a2a2a; --text:#eee; --grey:#c8c8c8; --muted:#9a9a9a; --green:#4cd964; --red:#ff5b5b; --amber:#ffc145; --blue:#5aa9ff; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { margin:0; background:var(--bg); color:var(--text); font-family:-apple-system,"SF Pro Text","Segoe UI",system-ui,sans-serif; font-size:16px; overscroll-behavior:none; }
+  body { padding: calc(env(safe-area-inset-top) + 12px) 14px calc(env(safe-area-inset-bottom) + 16px); max-width:900px; margin:0 auto; }
+  header { display:flex; align-items:center; justify-content:space-between; padding:4px 2px 10px; gap:10px; }
+  header .title { font-weight:700; letter-spacing:.08em; font-size:13px; color:var(--muted); }
+  header a { color:var(--blue); text-decoration:none; font-size:14px; }
+  .bar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px; }
+  .bar button { flex:1 1 auto; background:var(--card); border:1px solid var(--line); color:var(--grey); border-radius:9px; padding:8px 6px; font-size:14px; }
+  .bar button.on { background:#2b6cff; border-color:#2b6cff; color:#fff; font-weight:600; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:10px 8px 6px; margin-bottom:10px; }
+  .head { display:flex; justify-content:space-between; align-items:baseline; padding:0 6px 6px; gap:8px; flex-wrap:wrap; }
+  .head .bal { font-weight:700; font-size:22px; }
+  .head .chg { font-size:14px; font-weight:600; }
+  .pos { color:var(--green); } .neg { color:var(--red); }
+  canvas { width:100%; height:62vh; max-height:560px; display:block; touch-action:none; }
+  .read { font-size:13px; color:var(--muted); padding:6px 6px 2px; min-height:20px; }
+  footer { color:#7a7a7a; font-size:12px; text-align:center; margin-top:8px; }
+  footer.bad { color:var(--red); }
+</style>
+</head>
+<body>
+<header>
+  <div class="title">AVIATOR · CHART</div>
+  <a href="./">&larr; numbers</a>
+</header>
+<div class="bar" id="sites">
+  <button data-site="combined" class="on">Combined</button>
+  <button data-site="hollywoodbets">Hollywoodbets</button>
+  <button data-site="betway">Betway</button>
+</div>
+<div class="bar" id="frames">
+  <button data-tf="1m">1m</button>
+  <button data-tf="1h" class="on">1h</button>
+  <button data-tf="1d">1d</button>
+  <button data-tf="1w">1w</button>
+  <button data-tf="1M">1M</button>
+  <button data-mode="toggle" id="mode">candles</button>
+</div>
+<section class="card">
+  <div class="head"><div class="bal" id="bal">-</div><div class="chg" id="chg"></div></div>
+  <canvas id="c"></canvas>
+  <div class="read" id="read">drag to move, pinch or wheel to zoom, tap a candle for its numbers</div>
+</section>
+<footer id="footer">loading...</footer>
+
+<script>
+(function () {
+  const KEY = 'aviator-feed';
+  const $ = (id) => document.getElementById(id);
+  const R = (n) => 'R' + Number(n).toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const R0 = (n) => 'R' + Math.round(n).toLocaleString('en-ZA');
+  const pad = (n) => String(n).padStart(2, '0');
+  let history = null, site = 'combined', tf = '1h', mode = 'candles';
+  let candles = [], view = { end: 0, count: 60 }; // visible window: last index (exclusive) and how many candles
+  let hover = null;
+
+  function loadCfg() { try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (_) { return null; } }
+
+  // ---- data shaping ----
+  function combinedSeries(h) {
+    const names = Object.keys(h.sites); const idx = {}; const last = {};
+    for (const n of names) { idx[n] = 0; last[n] = h.sites[n].length ? h.sites[n][0][1] : 0; }
+    const times = [...new Set(names.flatMap((n) => h.sites[n].map((p) => p[0])))].sort((a, b) => a - b);
+    const out = [];
+    for (const t of times) {
+      for (const n of names) { const s = h.sites[n]; while (idx[n] < s.length && s[idx[n]][0] <= t) { last[n] = s[idx[n]][1]; idx[n]++; } }
+      out.push([t, names.reduce((a, n) => a + last[n], 0)]);
+    }
+    return out;
+  }
+  function bucketKey(t) {
+    const d = new Date(t);
+    if (tf === '1m') return Math.floor(t / 60000);
+    if (tf === '1h') return Math.floor(t / 3600000);
+    if (tf === '1d') return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+    if (tf === '1w') { const x = new Date(d); const day = (x.getDay() + 6) % 7; x.setDate(x.getDate() - day); x.setHours(0, 0, 0, 0); return x.getTime(); }
+    return d.getFullYear() * 100 + d.getMonth() + 1;
+  }
+  function build() {
+    if (!history) return;
+    const series = site === 'combined' ? combinedSeries(history) : (history.sites[site] || []);
+    candles = [];
+    let cur = null;
+    for (const [t, b] of series) {
+      const k = bucketKey(t);
+      if (!cur || cur.k !== k) { if (cur) candles.push(cur); cur = { k, t0: t, t1: t, o: b, h: b, l: b, c: b, n: 1 }; }
+      else { cur.t1 = t; cur.c = b; cur.h = Math.max(cur.h, b); cur.l = Math.min(cur.l, b); cur.n++; }
+    }
+    if (cur) candles.push(cur);
+    // events (deposits / withdrawals) attached to their candle
+    const ev = (history.events || []).filter((e) => site === 'combined' || e.site === site);
+    for (const c of candles) c.events = ev.filter((e) => bucketKey(e.time) === c.k);
+    view.count = Math.min(Math.max(view.count, 10), Math.max(candles.length, 10));
+    view.end = candles.length;
+    draw();
+  }
+
+  // ---- drawing ----
+  const cv = $('c'); const ctx = cv.getContext('2d');
+  function fmtTime(t) {
+    const d = new Date(t);
+    if (tf === '1m' || tf === '1h') return pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+    if (tf === '1M') return d.toLocaleDateString('en-ZA', { month: 'short', year: '2-digit' });
+    return pad(d.getDate()) + '/' + pad(d.getMonth() + 1);
+  }
+  function draw() {
+    const dpr = window.devicePixelRatio || 1;
+    const W = cv.clientWidth, H = cv.clientHeight;
+    if (cv.width !== W * dpr || cv.height !== H * dpr) { cv.width = W * dpr; cv.height = H * dpr; }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    if (!candles.length) { ctx.fillStyle = '#9a9a9a'; ctx.font = '14px system-ui'; ctx.fillText('no data yet', 20, 40); return; }
+    const start = Math.max(0, view.end - view.count), end = Math.min(candles.length, view.end);
+    const vis = candles.slice(start, end);
+    const padL = 8, padR = 62, padT = 10, padB = 26;
+    const w = W - padL - padR, h = H - padT - padB;
+    let lo = Infinity, hi = -Infinity;
+    for (const c of vis) { lo = Math.min(lo, c.l); hi = Math.max(hi, c.h); }
+    if (hi === lo) { hi += 1; lo -= 1; }
+    const span = hi - lo; lo -= span * 0.06; hi += span * 0.06;
+    const y = (v) => padT + (hi - v) / (hi - lo) * h;
+    const slot = w / vis.length; const bw = Math.max(1, Math.min(slot * 0.65, 18));
+    // grid + y labels
+    ctx.strokeStyle = '#242424'; ctx.fillStyle = '#9a9a9a'; ctx.font = '11px system-ui'; ctx.textAlign = 'left'; ctx.lineWidth = 1;
+    const steps = 5;
+    for (let i = 0; i <= steps; i++) { const v = lo + (hi - lo) * i / steps; const yy = y(v); ctx.beginPath(); ctx.moveTo(padL, yy); ctx.lineTo(padL + w, yy); ctx.stroke(); ctx.fillText(R0(v), padL + w + 6, yy + 4); }
+    // x labels
+    ctx.textAlign = 'center';
+    const every = Math.max(1, Math.round(vis.length / Math.max(2, Math.floor(w / 80))));
+    vis.forEach((c, i) => { if (i % every === 0) ctx.fillText(fmtTime(c.t0), padL + slot * (i + 0.5), H - 8); });
+    // candles or line
+    if (mode === 'line') {
+      ctx.strokeStyle = '#5aa9ff'; ctx.lineWidth = 2; ctx.beginPath();
+      vis.forEach((c, i) => { const x = padL + slot * (i + 0.5); i ? ctx.lineTo(x, y(c.c)) : ctx.moveTo(x, y(c.c)); });
+      ctx.stroke();
+    } else {
+      vis.forEach((c, i) => {
+        const x = padL + slot * (i + 0.5); const up = c.c >= c.o; const col = up ? '#4cd964' : '#ff5b5b';
+        ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(x, y(c.h)); ctx.lineTo(x, y(c.l)); ctx.stroke();
+        const top = y(Math.max(c.o, c.c)), bot = y(Math.min(c.o, c.c));
+        ctx.fillRect(x - bw / 2, top, bw, Math.max(1, bot - top));
+      });
+    }
+    // event markers
+    ctx.font = '11px system-ui'; ctx.textAlign = 'center';
+    vis.forEach((c, i) => { for (const e of c.events || []) { const x = padL + slot * (i + 0.5); ctx.fillStyle = '#ffc145'; ctx.beginPath(); ctx.moveTo(x, y(c.h) - 14); ctx.lineTo(x - 5, y(c.h) - 6); ctx.lineTo(x + 5, y(c.h) - 6); ctx.fill(); ctx.fillText((e.amount > 0 ? '+' : '-') + R0(Math.abs(e.amount)), x, y(c.h) - 17); } });
+    // hover
+    if (hover != null && hover >= start && hover < end) {
+      const i = hover - start; const x = padL + slot * (i + 0.5); const c = candles[hover];
+      ctx.strokeStyle = '#666'; ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.moveTo(x, padT); ctx.lineTo(x, padT + h); ctx.stroke(); ctx.setLineDash([]);
+      const chg = c.c - c.o;
+      $('read').textContent = fmtTime(c.t0) + (c.n > 1 ? ' to ' + fmtTime(c.t1) : '') + '  |  open ' + R(c.o) + '  high ' + R(c.h) + '  low ' + R(c.l) + '  close ' + R(c.c) + '  |  ' + (chg >= 0 ? '+' : '-') + R(Math.abs(chg)) + '  |  ' + c.n + ' bets' + (c.events && c.events.length ? '  |  ' + c.events.map((e) => e.kind + ' ' + R(Math.abs(e.amount))).join(', ') : '');
+    }
+    // header figures for the visible window
+    const first = vis[0], lastC = vis[vis.length - 1]; const change = lastC.c - first.o;
+    $('bal').textContent = R(lastC.c);
+    $('chg').textContent = (change >= 0 ? '+' : '-') + R(Math.abs(change)) + ' (' + (change >= 0 ? '+' : '-') + Math.abs(100 * change / first.o).toFixed(1) + '%) over the view';
+    $('chg').className = 'chg ' + (change >= 0 ? 'pos' : 'neg');
+  }
+
+  // ---- interaction: drag, pinch, wheel, tap ----
+  let drag = null, pinch = null;
+  const idxAt = (px) => { const W = cv.clientWidth, padL = 8, padR = 62, w = W - padL - padR; const start = Math.max(0, view.end - view.count); const n = Math.min(candles.length, view.end) - start; const i = Math.floor((px - padL) / (w / n)); return i >= 0 && i < n ? start + i : null; };
+  const pos = (ev) => { const r = cv.getBoundingClientRect(); return { x: ev.clientX - r.left, y: ev.clientY - r.top }; };
+  cv.addEventListener('pointerdown', (e) => { cv.setPointerCapture(e.pointerId); const p = pos(e); if (pinch === null && drag === null) drag = { x: p.x, end: view.end, moved: false, id: e.pointerId }; else if (drag && e.pointerId !== drag.id) { pinch = { id2: e.pointerId, x1: drag.x, x2: p.x, count: view.count }; } });
+  cv.addEventListener('pointermove', (e) => {
+    const p = pos(e);
+    if (pinch) { if (e.pointerId === pinch.id2) pinch.x2 = p.x; else pinch.x1 = p.x; const d0 = Math.abs(pinch.x2 - pinch.x1) || 1; const scale = (Math.abs(pinch.startD || d0)) / d0; if (!pinch.startD) pinch.startD = d0; view.count = Math.round(Math.min(Math.max(pinch.count * scale, 10), candles.length)); draw(); return; }
+    if (drag && e.pointerId === drag.id) { const W = cv.clientWidth; const slot = (W - 70) / view.count; const shift = Math.round((drag.x - p.x) / slot); if (shift) drag.moved = true; view.end = Math.min(candles.length, Math.max(view.count, drag.end + shift)); draw(); }
+    else { hover = idxAt(p.x); draw(); }
+  });
+  const up = (e) => { if (drag && e.pointerId === drag.id) { if (!drag.moved) { hover = idxAt(pos(e).x); draw(); } drag = null; pinch = null; } else if (pinch && e.pointerId === pinch.id2) pinch = null; };
+  cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+  cv.addEventListener('wheel', (e) => { e.preventDefault(); const f = e.deltaY > 0 ? 1.2 : 1 / 1.2; view.count = Math.round(Math.min(Math.max(view.count * f, 10), Math.max(candles.length, 10))); view.end = Math.min(candles.length, Math.max(view.count, view.end)); draw(); }, { passive: false });
+  window.addEventListener('resize', draw);
+
+  // ---- controls ----
+  $('sites').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; site = b.dataset.site; [...$('sites').children].forEach((x) => x.classList.toggle('on', x === b)); hover = null; build(); });
+  $('frames').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; if (b.id === 'mode') { mode = mode === 'candles' ? 'line' : 'candles'; b.textContent = mode; draw(); return; } tf = b.dataset.tf; [...$('frames').children].forEach((x) => { if (x.dataset.tf) x.classList.toggle('on', x === b); }); hover = null; view.count = 60; build(); });
+
+  // ---- loading ----
+  async function load() {
+    const cfg = loadCfg();
+    if (!cfg || !cfg.project || !cfg.token) { $('footer').textContent = 'connect on the numbers page first (gear icon)'; $('footer').className = 'bad'; return; }
+    const url = 'https://api.github.com/repos/' + cfg.project + '/contents/data/history.json?ref=main&t=' + Date.now();
+    try {
+      const r = await fetch(url, { headers: { Authorization: 'Bearer ' + cfg.token, Accept: 'application/vnd.github.raw+json', 'X-GitHub-Api-Version': '2022-11-28' }, cache: 'no-store' });
+      if (r.status === 404) { $('footer').textContent = 'no history yet: the PC feed writes it within five minutes of starting'; $('footer').className = 'bad'; return; }
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      history = await r.json();
+      const pts = Object.values(history.sites).reduce((a, s) => a + s.length, 0);
+      $('footer').textContent = pts.toLocaleString() + ' bets on record, history refreshed ' + new Date(history.generated).toLocaleString('en-ZA', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' }) + ' | page checks every minute';
+      $('footer').className = '';
+      build();
+    } catch (e) { $('footer').textContent = 'could not reach GitHub: ' + e.message; $('footer').className = 'bad'; }
+  }
+  load();
+  setInterval(load, 60000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
+})();
+</script>
+</body>
+</html>
