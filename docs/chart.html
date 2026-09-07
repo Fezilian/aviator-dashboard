@@ -131,7 +131,7 @@
     let lo = Infinity, hi = -Infinity;
     for (const c of vis) { lo = Math.min(lo, c.l); hi = Math.max(hi, c.h); }
     if (hi === lo) { hi += 1; lo -= 1; }
-    const span = hi - lo; lo -= span * 0.06; hi += span * 0.06;
+    const span = hi - lo; lo -= span * 0.12; hi += span * 0.14;
     const y = (v) => padT + (hi - v) / (hi - lo) * h;
     const slot = w / vis.length; const bw = Math.max(1, Math.min(slot * 0.65, 18));
     // grid + y labels
@@ -140,7 +140,7 @@
     for (let i = 0; i <= steps; i++) { const v = lo + (hi - lo) * i / steps; const yy = y(v); ctx.beginPath(); ctx.moveTo(padL, yy); ctx.lineTo(padL + w, yy); ctx.stroke(); ctx.fillText(R0(v), padL + w + 6, yy + 4); }
     // x labels
     ctx.textAlign = 'center';
-    const every = Math.max(1, Math.round(vis.length / Math.max(2, Math.floor(w / 80))));
+    const every = Math.max(1, Math.ceil(vis.length / Math.max(2, Math.floor(w / 92))));
     vis.forEach((c, i) => { if (i % every === 0) ctx.fillText(fmtTime(c.t0), padL + slot * (i + 0.5), H - 8); });
     // candles or line
     if (mode === 'line') {
@@ -158,10 +158,19 @@
     }
     // event markers
     ctx.font = '11px system-ui'; ctx.textAlign = 'center';
-    vis.forEach((c, i) => { let k = 0; for (const e of c.events || []) { const x = padL + slot * (i + 0.5); const bust = e.kind === 'bust'; ctx.fillStyle = bust ? '#ff5b5b' : '#ffc145';
-      if (bust) { const yb = y(c.l) + 8 + k * 14; ctx.beginPath(); ctx.moveTo(x, yb); ctx.lineTo(x - 5, yb + 8); ctx.lineTo(x + 5, yb + 8); ctx.fill(); ctx.fillText('bust ' + R0(Math.abs(e.amount)), x, yb + 20); }
-      else { ctx.beginPath(); ctx.moveTo(x, y(c.h) - 14); ctx.lineTo(x - 5, y(c.h) - 6); ctx.lineTo(x + 5, y(c.h) - 6); ctx.fill(); ctx.fillText((e.amount > 0 ? '+' : '-') + R0(Math.abs(e.amount)), x, y(c.h) - 17); }
-      k++; } });
+    // one marker per kind per candle: several deposits (or busts) in the same bucket become one label with the total
+    vis.forEach((c, i) => {
+      if (!c.events || !c.events.length) return;
+      const x = padL + slot * (i + 0.5);
+      const groups = {};
+      for (const e of c.events) { const g = groups[e.kind] || (groups[e.kind] = { kind: e.kind, total: 0, n: 0 }); g.total += e.amount; g.n++; }
+      let up = 0, down = 0;
+      for (const g of Object.values(groups)) {
+        const label = (g.kind === 'bust' ? 'bust ' : (g.total > 0 ? '+' : '-')) + R0(Math.abs(g.total)) + (g.n > 1 ? ' (' + g.n + ')' : '');
+        if (g.kind === 'bust') { ctx.fillStyle = '#ff5b5b'; const yb = y(c.l) + 8 + down * 22; ctx.beginPath(); ctx.moveTo(x, yb); ctx.lineTo(x - 5, yb + 8); ctx.lineTo(x + 5, yb + 8); ctx.fill(); ctx.fillText(label, x, yb + 20); down++; }
+        else { ctx.fillStyle = '#ffc145'; const yt = y(c.h) - 6 - up * 22; ctx.beginPath(); ctx.moveTo(x, yt - 8); ctx.lineTo(x - 5, yt); ctx.lineTo(x + 5, yt); ctx.fill(); ctx.fillText(label, x, yt - 11); up++; }
+      }
+    });
     // hover
     if (hover != null && hover >= start && hover < end) {
       const i = hover - start; const x = padL + slot * (i + 0.5); const c = candles[hover];
