@@ -21,10 +21,12 @@
   header .clock { font-size:13px; color:var(--muted); text-align:center; flex:1; }
   header .gear { font-size:20px; color:var(--muted); background:none; border:0; padding:6px; }
   .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px 16px; margin-bottom:12px; }
-  .row { display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
+  .row { display:flex; align-items:baseline; justify-content:space-between; gap:8px; flex-wrap:wrap; }
+  .row > * { min-width:0; }
   .name { font-weight:700; font-size:17px; }
-  .name small { font-weight:400; color:var(--muted); font-size:13px; margin-left:6px; }
-  .profit { font-weight:700; font-size:26px; white-space:nowrap; }
+  .name small { display:block; font-weight:400; color:var(--muted); font-size:12px; margin-top:1px; }
+  .profit { font-weight:700; font-size:22px; white-space:nowrap; margin-left:auto; }
+  .profit .pct { font-size:14px; font-weight:600; opacity:.85; margin-left:4px; }
   .profit.pos { color:var(--green); } .profit.neg { color:var(--red); } .profit.none { color:var(--muted); }
   .line { color:var(--grey); font-size:14px; margin-top:6px; line-height:1.35; }
   .line.small { color:var(--muted); font-size:13px; }
@@ -71,7 +73,7 @@
   const $ = (id) => document.getElementById(id);
   const rand = (n) => n == null ? '-' : (n < 0 ? '-' : '+') + 'R' + Math.abs(n).toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const randPlain = (n) => n == null ? '-' : 'R' + Number(n).toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const pct = (profit, base) => (profit == null || !base) ? '' : ' (' + (profit < 0 ? '-' : '+') + Math.abs(100 * profit / base).toFixed(1) + '%)';
+  const pct = (profit, base) => (profit == null || !base) ? '' : '<span class="pct">(' + (profit < 0 ? '-' : '+') + Math.abs(100 * profit / base).toFixed(1) + '%)</span>';
   const nice = (n) => ({ hollywoodbets: 'Hollywoodbets', betway: 'Betway' })[n] || n;
   const hhmm = (iso) => { const d = new Date(iso); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
 
