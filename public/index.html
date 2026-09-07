@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Aviator</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="theme-color" content="#161616">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Aviator">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-180.png">
+<style>
+  :root { color-scheme: dark; --bg:#0f0f0f; --card:#1a1a1a; --line:#2a2a2a; --text:#eee; --grey:#c8c8c8; --muted:#9a9a9a; --green:#4cd964; --red:#ff5b5b; --amber:#ffc145; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin:0; background:var(--bg); color:var(--text); font-family: -apple-system, "SF Pro Text", "Segoe UI", system-ui, sans-serif; font-size:16px; }
+  body { padding: calc(env(safe-area-inset-top) + 12px) 14px calc(env(safe-area-inset-bottom) + 20px); max-width: 560px; margin: 0 auto; }
+  header { display:flex; align-items:center; justify-content:space-between; padding: 4px 2px 10px; }
+  header .title { font-weight:700; letter-spacing:.08em; font-size:13px; color:var(--muted); }
+  header .clock { font-size:13px; color:var(--muted); text-align:center; flex:1; }
+  header .gear { font-size:20px; color:var(--muted); background:none; border:0; padding:6px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px 16px; margin-bottom:12px; }
+  .row { display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
+  .name { font-weight:700; font-size:17px; }
+  .name small { font-weight:400; color:var(--muted); font-size:13px; margin-left:6px; }
+  .profit { font-weight:700; font-size:26px; white-space:nowrap; }
+  .profit.pos { color:var(--green); } .profit.neg { color:var(--red); } .profit.none { color:var(--muted); }
+  .line { color:var(--grey); font-size:14px; margin-top:6px; line-height:1.35; }
+  .line.small { color:var(--muted); font-size:13px; }
+  .status { margin-top:8px; font-size:14px; color:var(--grey); }
+  .status.ladder { color:var(--amber); } .status.tracking { color:var(--muted); }
+  .stale { color:var(--red); font-weight:600; }
+  .combined .label { font-size:12px; color:var(--muted); letter-spacing:.06em; }
+  footer { color:#7a7a7a; font-size:12px; text-align:center; margin-top:10px; }
+  footer.bad { color:var(--red); }
+  #settings { display:none; }
+  #settings.show { display:block; }
+  label { display:block; color:var(--muted); font-size:13px; margin: 10px 0 4px; }
+  input { width:100%; font-size:16px; padding:10px 12px; border-radius:10px; border:1px solid var(--line); background:#111; color:var(--text); }
+  .btn { margin-top:12px; width:100%; padding:12px; font-size:16px; border-radius:10px; border:0; background:#2b6cff; color:#fff; font-weight:600; }
+  .btn.secondary { background:#2a2a2a; color:var(--grey); margin-top:8px; }
+  .hint { color:var(--muted); font-size:13px; line-height:1.4; margin-top:8px; }
+  code { background:#111; padding:1px 5px; border-radius:5px; font-size:13px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="title">AVIATOR</div>
+  <div class="clock" id="clock"></div>
+  <button class="gear" id="gear" aria-label="settings">&#9881;</button>
+</header>
+
+<section id="settings" class="card">
+  <div class="name">Connect to the feed</div>
+  <div class="hint">The PC pushes the numbers to a private GitLab project every minute. This phone reads them with a read-only token. Both are saved on this phone only.</div>
+  <label for="project">GitLab project path</label>
+  <input id="project" placeholder="username/aviator-dashboard" autocapitalize="none" autocorrect="off">
+  <label for="token">Read token</label>
+  <input id="token" placeholder="glpat-..." autocapitalize="none" autocorrect="off">
+  <button class="btn" id="save">Save and connect</button>
+  <button class="btn secondary" id="cancel">Cancel</button>
+</section>
+
+<main id="main"></main>
+<footer id="footer">connecting...</footer>
+
+<script>
+(function () {
+  const KEY = 'aviator-feed';
+  const $ = (id) => document.getElementById(id);
+  const rand = (n) => n == null ? '-' : (n < 0 ? '-' : '+') + 'R' + Math.abs(n).toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const randPlain = (n) => n == null ? '-' : 'R' + Number(n).toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const pct = (profit, base) => (profit == null || !base) ? '' : ' (' + (profit < 0 ? '-' : '+') + Math.abs(100 * profit / base).toFixed(1) + '%)';
+  const nice = (n) => ({ hollywoodbets: 'Hollywoodbets', betway: 'Betway' })[n] || n;
+  const hhmm = (iso) => { const d = new Date(iso); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+
+  function loadCfg() { try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (_) { return null; } }
+  function saveCfg(c) { try { localStorage.setItem(KEY, JSON.stringify(c)); } catch (_) {} }
+  function showSettings(show) { $('settings').classList.toggle('show', show); if (show) { const c = loadCfg() || {}; $('project').value = c.project || ''; $('token').value = c.token || ''; } }
+  $('gear').onclick = () => showSettings(!$('settings').classList.contains('show'));
+  $('cancel').onclick = () => showSettings(false);
+  $('save').onclick = () => { saveCfg({ project: $('project').value.trim().replace(/^https?:\/\/gitlab\.com\//, '').replace(/\/$/, ''), token: $('token').value.trim() }); showSettings(false); refresh(); };
+
+  function render(d) {
+    const sites = d.sites || [];
+    let html = '';
+    for (const s of sites) {
+      const cls = s.profit == null ? 'none' : s.profit >= 0 ? 'pos' : 'neg';
+      const stale = s.lastRoundMinutesAgo != null && s.lastRoundMinutesAgo >= 3 ? ' <span class="stale">| NO ROUND FOR ' + s.lastRoundMinutesAgo + ' MIN</span>' : '';
+      let deep = 'deepest ladder today ' + s.deepest;
+      if (s.deepestInfo) deep += ' (' + randPlain(s.deepestInfo.down) + ' down, top bet ' + randPlain(s.deepestInfo.topStake) + (s.deepestInfo.won ? ', won' : ', BUST') + ')';
+      const dd = (s.open > 0) ? (100 * s.maxDrawdown / (s.open + s.peak)).toFixed(1) + '%' : '-';
+      const ddAt = s.maxDrawdownAt ? ' at ' + hhmm(s.maxDrawdownAt) : '';
+      const statusCls = s.ladder ? 'ladder' : s.tracking ? 'tracking' : '';
+      html += '<section class="card">' +
+        '<div class="row"><div class="name">' + nice(s.name) + '<small>' + s.strategy + '</small></div><div class="profit ' + cls + '">' + rand(s.profit) + pct(s.profit, s.open) + '</div></div>' +
+        '<div class="line">unit ' + randPlain(s.unit) + ' | win rate ' + (s.winRate == null ? '-' : s.winRate + '%') + ' | ' + s.wins + ' of ' + s.bets + ' bets | balance ' + randPlain(s.balance) + '</div>' +
+        '<div class="status ' + statusCls + '">' + s.status + '</div>' +
+        '<div class="line small">' + deep + ' | rejections ' + s.rejections + ' | biggest fly ' + s.biggestCrash + 'x' + stale + '</div>' +
+        '<div class="line small">max drawdown today ' + dd + ddAt + '</div>' +
+        '</section>';
+    }
+    const c = d.combined || {};
+    const openTotal = sites.filter((s) => s.open != null && s.profit != null).reduce((a, s) => a + s.open, 0);
+    const ccls = c.profit == null ? 'none' : c.profit >= 0 ? 'pos' : 'neg';
+    const label = c.isToday ? 'COMBINED TODAY' : c.dayDate ? 'COMBINED ' + c.dayDate : 'COMBINED';
+    html += '<section class="card combined">' +
+      '<div class="row"><div class="label">' + label + '</div><div class="profit ' + ccls + '">' + rand(c.profit) + pct(c.profit, openTotal) + '</div></div>' +
+      '<div class="line">win rate ' + (c.winRate == null ? '-' : c.winRate + '%') + ' | ' + c.wins + ' of ' + c.bets + ' bets | rejections ' + c.rejections + ' | balance ' + randPlain(c.balance) + '</div>' +
+      '<div class="line">deposits ' + randPlain(c.deposits) + ' | against deposits ' + rand(c.vsDeposits) + '</div>' +
+      '</section>';
+    $('main').innerHTML = html;
+    let run = '';
+    if (c.runningMinutes != null) {
+      const hm = Math.floor(c.runningMinutes / 60) + 'h ' + (c.runningMinutes % 60) + 'm';
+      run = !c.isToday ? c.dayDate + ' ran ' + hm : c.closed ? 'day closed after ' + hm : 'running ' + hm;
+    } else run = 'day opens 08:00';
+    const now = new Date();
+    $('clock').textContent = now.toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short' }) + ' ' + hhmm(now) + ' | ' + run;
+  }
+
+  let lastData = null;
+  function footer(d) {
+    const f = $('footer');
+    if (!d) return;
+    const age = Math.round((Date.now() - new Date(d.time)) / 60000);
+    f.textContent = 'PC pushed this ' + (age < 1 ? 'under a minute' : age + ' min') + ' ago (' + hhmm(d.time) + ') | phone refreshes every 30 s';
+    f.className = age >= 4 ? 'bad' : '';
+    if (age >= 4) f.textContent += ' | the PC feed looks stopped';
+  }
+
+  async function refresh() {
+    const cfg = loadCfg();
+    if (!cfg || !cfg.project || !cfg.token) { showSettings(true); $('footer').textContent = 'enter the project and token to connect'; return; }
+    const url = 'https://gitlab.com/api/v4/projects/' + encodeURIComponent(cfg.project) + '/repository/files/' + encodeURIComponent('data/latest.json') + '/raw?ref=main&t=' + Date.now();
+    try {
+      const r = await fetch(url, { headers: { 'PRIVATE-TOKEN': cfg.token }, cache: 'no-store' });
+      if (r.status === 401 || r.status === 403) { $('footer').textContent = 'GitLab refused the token (' + r.status + '). Check the project path and token.'; $('footer').className = 'bad'; showSettings(true); return; }
+      if (r.status === 404) { $('footer').textContent = 'no data/latest.json in that project yet. Is the PC publisher running?'; $('footer').className = 'bad'; return; }
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const d = await r.json();
+      lastData = d; render(d); footer(d);
+    } catch (e) {
+      $('footer').textContent = 'could not reach GitLab: ' + e.message + (lastData ? ' | showing the last numbers' : '');
+      $('footer').className = 'bad';
+    }
+  }
+  refresh();
+  setInterval(refresh, 30000);
+  setInterval(() => { if (lastData) footer(lastData); }, 15000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
+})();
+</script>
+</body>
+</html>
