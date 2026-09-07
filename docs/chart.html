@@ -158,17 +158,30 @@
     }
     // event markers
     ctx.font = '11px system-ui'; ctx.textAlign = 'center';
-    // one marker per kind per candle: several deposits (or busts) in the same bucket become one label with the total
+    // markers: one per kind per candle (several deposits in one bucket become one label with the total).
+    // Labels are only drawn when there is room, and any label that would overlap another is pushed
+    // up (or down for busts) until it is clear; the triangle is always drawn.
+    const placed = [];
+    const fits = (bx) => !placed.some((o) => bx.x < o.x + o.w && bx.x + bx.w > o.x && bx.y < o.y + o.h && bx.y + bx.h > o.y);
+    const showLabels = slot >= 14;
     vis.forEach((c, i) => {
       if (!c.events || !c.events.length) return;
       const x = padL + slot * (i + 0.5);
       const groups = {};
       for (const e of c.events) { const g = groups[e.kind] || (groups[e.kind] = { kind: e.kind, total: 0, n: 0 }); g.total += e.amount; g.n++; }
-      let up = 0, down = 0;
       for (const g of Object.values(groups)) {
-        const label = (g.kind === 'bust' ? 'bust ' : (g.total > 0 ? '+' : '-')) + R0(Math.abs(g.total)) + (g.n > 1 ? ' (' + g.n + ')' : '');
-        if (g.kind === 'bust') { ctx.fillStyle = '#ff5b5b'; const yb = y(c.l) + 8 + down * 22; ctx.beginPath(); ctx.moveTo(x, yb); ctx.lineTo(x - 5, yb + 8); ctx.lineTo(x + 5, yb + 8); ctx.fill(); ctx.fillText(label, x, yb + 20); down++; }
-        else { ctx.fillStyle = '#ffc145'; const yt = y(c.h) - 6 - up * 22; ctx.beginPath(); ctx.moveTo(x, yt - 8); ctx.lineTo(x - 5, yt); ctx.lineTo(x + 5, yt); ctx.fill(); ctx.fillText(label, x, yt - 11); up++; }
+        const bust = g.kind === 'bust';
+        const label = (bust ? 'bust ' : (g.total > 0 ? '+' : '-')) + R0(Math.abs(g.total)) + (g.n > 1 ? ' (' + g.n + ')' : '');
+        ctx.fillStyle = bust ? '#ff5b5b' : '#ffc145';
+        if (bust) { const yb = y(c.l) + 6; ctx.beginPath(); ctx.moveTo(x, yb); ctx.lineTo(x - 5, yb + 8); ctx.lineTo(x + 5, yb + 8); ctx.fill(); }
+        else { const yt = y(c.h) - 6; ctx.beginPath(); ctx.moveTo(x, yt - 8); ctx.lineTo(x - 5, yt); ctx.lineTo(x + 5, yt); ctx.fill(); }
+        if (!showLabels && hover !== start + i) continue;
+        const tw = ctx.measureText(label).width + 6, th = 13;
+        let bx = { x: Math.min(Math.max(padL, x - tw / 2), padL + w - tw), y: bust ? y(c.l) + 16 : y(c.h) - 16 - th, w: tw, h: th };
+        let guard = 0;
+        while (!fits(bx) && guard++ < 40) bx.y += bust ? th + 2 : -(th + 2);
+        placed.push(bx);
+        ctx.textAlign = 'center'; ctx.fillText(label, bx.x + tw / 2, bx.y + th - 2);
       }
     });
     // hover
