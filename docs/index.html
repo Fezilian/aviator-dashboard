@@ -34,6 +34,10 @@
   .status { margin-top:8px; font-size:14px; color:var(--grey); }
   .status.ladder { color:var(--amber); } .status.tracking { color:var(--muted); }
   .stale { color:var(--red); font-weight:600; }
+  .warn { color:var(--amber); }
+  .pos { color:var(--green); } .neg { color:var(--red); }
+  .bar { height:6px; background:#2a2a2a; border-radius:3px; margin-top:8px; overflow:hidden; }
+  .bar .fill { height:100%; background:var(--green); border-radius:3px; }
   .combined .label { font-size:12px; color:var(--muted); letter-spacing:.06em; }
   footer { color:#7a7a7a; font-size:12px; text-align:center; margin-top:10px; }
   footer.bad { color:var(--red); }
@@ -102,7 +106,9 @@
         '<div class="line">unit ' + randPlain(s.unit) + ' | win rate ' + (s.winRate == null ? '-' : s.winRate + '%') + ' | ' + s.wins + ' of ' + s.bets + ' bets | balance ' + randPlain(s.balance) + '</div>' +
         '<div class="status ' + statusCls + '">' + s.status + '</div>' +
         '<div class="line small">' + deep + ' | rejections ' + s.rejections + ' | biggest fly ' + s.biggestCrash + 'x' + stale + '</div>' +
-        '<div class="line small">max drawdown today ' + dd + ddAt + '</div>' +
+        '<div class="line small">max drawdown today ' + dd + ddAt + (s.maxBustsPerDay ? ' | busts today <b class="' + (s.bustsToday ? 'warn' : '') + '">' + s.bustsToday + ' of ' + s.maxBustsPerDay + '</b>' : '') + '</div>' +
+        (s.lastBet ? '<div class="line small">last bet ' + hhmm(s.lastBet.time) + ': ' + randPlain(s.lastBet.stake) + ' at ' + s.lastBet.target + 'x, ' + (s.lastBet.won ? '<span class="pos">won ' + rand(s.lastBet.profit) + '</span>' : '<span class="neg">lost' + (s.lastBet.crash != null ? ', crashed at ' + s.lastBet.crash + 'x' : '') + '</span>') + '</div>' : '') +
+        (s.night ? '<div class="line small">night window 01:55-02:10: ' + s.night.flies + ' flies, biggest ' + s.night.biggest.toFixed(2) + 'x, ' + s.night.tenPlus + ' at 10x+, ' + s.night.hundredPlus + ' at 100x+</div>' : '') +
         '</section>';
     }
     const c = d.combined || {};
@@ -113,6 +119,7 @@
       '<div class="row"><div class="label">' + label + '</div><div class="profit ' + ccls + '">' + rand(c.profit) + pct(c.profit, openTotal) + '</div></div>' +
       '<div class="line">win rate ' + (c.winRate == null ? '-' : c.winRate + '%') + ' | ' + c.wins + ' of ' + c.bets + ' bets | rejections ' + c.rejections + ' | balance ' + randPlain(c.balance) + '</div>' +
       '<div class="line">deposits ' + randPlain(c.deposits) + ' | against deposits ' + rand(c.vsDeposits) + '</div>' +
+      (c.nextMilestone ? '<div class="line">next: ' + c.nextMilestone.label + ' at ' + randPlain(c.nextMilestone.at) + ', ' + (c.nextMilestone.toGo > 0 ? randPlain(c.nextMilestone.toGo) + ' to go' : '<b class="pos">reached</b>') + '</div>' + '<div class="bar"><div class="fill" style="width:' + Math.max(0, Math.min(100, 100 * c.balance / c.nextMilestone.at)).toFixed(1) + '%"></div></div>' : '') +
       '</section>';
     $('main').innerHTML = html;
     let run = '';
