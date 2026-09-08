@@ -72,7 +72,7 @@
 
 <main id="main"></main>
 <footer id="footer">connecting...</footer>
-<div style="text-align:center;color:#555;font-size:11px;margin-top:4px">numbers v5</div>
+<div style="text-align:center;color:#555;font-size:11px;margin-top:4px">numbers v6</div>
 
 <script>
 (function () {
@@ -137,7 +137,8 @@
     const f = $('footer');
     if (!d) return;
     const age = Math.round((Date.now() - new Date(d.time)) / 60000);
-    f.textContent = 'PC pushed this ' + (age < 1 ? 'under a minute' : age + ' min') + ' ago (' + hhmm(d.time) + ') | phone refreshes every 30 s';
+    const ageText = age < 1 ? 'under a minute ago' : age < 60 ? age + ' min ago' : Math.floor(age / 60) + ' h ' + (age % 60) + ' min ago';
+    f.textContent = 'PC pushed this ' + ageText + ', at ' + hhmm(d.time) + ' | phone refreshes every 30 s';
     f.className = age >= 4 ? 'bad' : '';
     if (age >= 4) f.textContent += ' | the PC feed looks stopped';
   }
