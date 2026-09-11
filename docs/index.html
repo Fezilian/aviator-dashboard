@@ -72,7 +72,7 @@
 
 <main id="main"></main>
 <footer id="footer">connecting...</footer>
-<div style="text-align:center;color:#555;font-size:11px;margin-top:4px">numbers v8</div>
+<div style="text-align:center;color:#555;font-size:11px;margin-top:4px">numbers v9</div>
 
 <script>
 (function () {
@@ -101,6 +101,13 @@
       const cls = room < s.stopLoss * 0.34 ? 'warn' : '';
       return ' | to stop-loss <b class="' + cls + '">' + randPlain(room) + '</b> (' + (100 * room / s.open).toFixed(0) + '%)';
     };
+    // R1 tickets at 100x bought inside the night window, once the night ticket is switched on
+    const nightTickets = (n) => {
+      if (!n.ticketsEnabled || !n.tickets) return '';
+      const t = n.tickets;
+      if (!t.bets) return ' | <span class="warn">no tickets bought</span>';
+      return ' | tickets ' + t.bets + ' bought, ' + t.hits + ' hit' + (t.hits === 1 ? '' : 's') + (t.hits ? ' (biggest ' + t.biggest.toFixed(2) + 'x)' : '') + ', <span class="' + (t.net >= 0 ? 'pos' : 'neg') + '">' + rand(t.net) + '</span>';
+    };
     let html = '';
     for (const s of sites) {
       const cls = s.profit == null ? 'none' : s.profit >= 0 ? 'pos' : 'neg';
@@ -117,7 +124,7 @@
         '<div class="line small">' + deep + ' | rejections ' + s.rejections + ' | biggest fly ' + s.biggestCrash + 'x' + stale + '</div>' +
         '<div class="line small">max drawdown today ' + dd + ddAt + slRoom(s) + '</div>' +
         (s.lastBet ? '<div class="line small">last bet ' + hhmm(s.lastBet.time) + ': ' + randPlain(s.lastBet.stake) + ' at ' + s.lastBet.target + 'x, ' + (s.lastBet.won ? '<span class="pos">won ' + rand(s.lastBet.profit) + '</span>' : '<span class="neg">lost' + (s.lastBet.crash != null ? ', crashed at ' + s.lastBet.crash + 'x' : '') + '</span>') + '</div>' : '') +
-        (s.night ? '<div class="line small">night window ' + new Date(s.night.date + 'T12:00:00').toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' }) + ' 01:55-02:10: ' + (s.night.flies ? s.night.flies + ' flies, biggest ' + s.night.biggest.toFixed(2) + 'x, ' + s.night.tenPlus + ' at 10x+, ' + s.night.hundredPlus + ' at 100x+' : '<span class="warn">no flies recorded, the bot was offline</span>') + '</div>' : '') +
+        (s.night ? '<div class="line small">night window ' + new Date(s.night.date + 'T12:00:00').toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' }) + ' 01:55-02:10: ' + (s.night.flies ? s.night.flies + ' flies, biggest ' + s.night.biggest.toFixed(2) + 'x, ' + s.night.tenPlus + ' at 10x+, ' + s.night.hundredPlus + ' at 100x+' : '<span class="warn">no flies recorded, the bot was offline</span>') + nightTickets(s.night) + '</div>' : '') +
         '</section>';
     }
     const c = d.combined || {};
