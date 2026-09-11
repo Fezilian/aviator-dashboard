@@ -72,7 +72,7 @@
 
 <main id="main"></main>
 <footer id="footer">connecting...</footer>
-<div style="text-align:center;color:#555;font-size:11px;margin-top:4px">numbers v7</div>
+<div style="text-align:center;color:#555;font-size:11px;margin-top:4px">numbers v8</div>
 
 <script>
 (function () {
@@ -93,6 +93,14 @@
 
   function render(d) {
     const sites = d.sites || [];
+    // room left before the day's stop-loss fires: the number that ends a day now
+    const slRoom = (s) => {
+      if (!s.stopLoss || s.profit == null || !s.isToday) return '';
+      if (s.tracking === 'stop-loss') return ' | <span class="neg">stop-loss hit</span>';
+      const room = s.stopLoss + s.profit;
+      const cls = room < s.stopLoss * 0.34 ? 'warn' : '';
+      return ' | to stop-loss <b class="' + cls + '">' + randPlain(room) + '</b> (' + (100 * room / s.open).toFixed(0) + '%)';
+    };
     let html = '';
     for (const s of sites) {
       const cls = s.profit == null ? 'none' : s.profit >= 0 ? 'pos' : 'neg';
@@ -107,7 +115,7 @@
         '<div class="line">unit ' + randPlain(s.unit) + ' | win rate ' + (s.winRate == null ? '-' : s.winRate + '%') + ' | ' + s.wins + ' of ' + s.bets + ' bets | balance ' + randPlain(s.balance) + '</div>' +
         '<div class="status ' + statusCls + '">' + s.status + '</div>' +
         '<div class="line small">' + deep + ' | rejections ' + s.rejections + ' | biggest fly ' + s.biggestCrash + 'x' + stale + '</div>' +
-        '<div class="line small">max drawdown today ' + dd + ddAt + (s.maxBustsPerDay ? ' | busts today <b class="' + (s.bustsToday ? 'warn' : '') + '">' + s.bustsToday + ' of ' + s.maxBustsPerDay + '</b>' : '') + '</div>' +
+        '<div class="line small">max drawdown today ' + dd + ddAt + slRoom(s) + '</div>' +
         (s.lastBet ? '<div class="line small">last bet ' + hhmm(s.lastBet.time) + ': ' + randPlain(s.lastBet.stake) + ' at ' + s.lastBet.target + 'x, ' + (s.lastBet.won ? '<span class="pos">won ' + rand(s.lastBet.profit) + '</span>' : '<span class="neg">lost' + (s.lastBet.crash != null ? ', crashed at ' + s.lastBet.crash + 'x' : '') + '</span>') + '</div>' : '') +
         (s.night ? '<div class="line small">night window ' + new Date(s.night.date + 'T12:00:00').toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' }) + ' 01:55-02:10: ' + (s.night.flies ? s.night.flies + ' flies, biggest ' + s.night.biggest.toFixed(2) + 'x, ' + s.night.tenPlus + ' at 10x+, ' + s.night.hundredPlus + ' at 100x+' : '<span class="warn">no flies recorded, the bot was offline</span>') + '</div>' : '') +
         '</section>';
