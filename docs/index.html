@@ -72,7 +72,7 @@
 
 <main id="main"></main>
 <footer id="footer">connecting...</footer>
-<div style="text-align:center;color:#555;font-size:11px;margin-top:4px">numbers v9</div>
+<div style="text-align:center;color:#555;font-size:11px;margin-top:4px">numbers v10</div>
 
 <script>
 (function () {
@@ -106,7 +106,8 @@
       if (!n.ticketsEnabled || !n.tickets) return '';
       const t = n.tickets;
       if (!t.bets) return ' | <span class="warn">no tickets bought</span>';
-      return ' | tickets ' + t.bets + ' bought, ' + t.hits + ' hit' + (t.hits === 1 ? '' : 's') + (t.hits ? ' (biggest ' + t.biggest.toFixed(2) + 'x)' : '') + ', <span class="' + (t.net >= 0 ? 'pos' : 'neg') + '">' + rand(t.net) + '</span>';
+      const paid = t.paidAt || t.biggest;
+      return ' | tickets ' + t.bets + ' bought, ' + t.hits + ' hit' + (t.hits === 1 ? '' : 's') + (t.hits && paid ? ' (cashed at ' + paid.toFixed(2) + 'x)' : '') + ', <span class="' + (t.net >= 0 ? 'pos' : 'neg') + '">' + rand(t.net) + '</span>';
     };
     let html = '';
     for (const s of sites) {
