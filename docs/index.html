@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -72,7 +72,7 @@
 
 <main id="main"></main>
 <footer id="footer">connecting...</footer>
-<div style="text-align:center;color:#555;font-size:11px;margin-top:4px">numbers v10</div>
+<div style="text-align:center;color:#555;font-size:11px;margin-top:4px">numbers v11</div>
 
 <script>
 (function () {
@@ -106,8 +106,11 @@
       if (!n.ticketsEnabled || !n.tickets) return '';
       const t = n.tickets;
       if (!t.bets) return ' | <span class="warn">no tickets bought</span>';
-      const paid = t.paidAt || t.biggest;
-      return ' | tickets ' + t.bets + ' bought, ' + t.hits + ' hit' + (t.hits === 1 ? '' : 's') + (t.hits && paid ? ' (cashed at ' + paid.toFixed(2) + 'x)' : '') + ', <span class="' + (t.net >= 0 ? 'pos' : 'neg') + '">' + rand(t.net) + '</span>';
+      // a hit says what it was cashed at; the fly's own crash is only known when the plane came down within the bot's wait
+      const detail = [];
+      if (t.hits && t.paidAt) detail.push('cashed at ' + t.paidAt.toFixed(2) + 'x');
+      if (t.hits && t.biggest) detail.push('fly ' + t.biggest.toFixed(2) + 'x');
+      return ' | tickets ' + t.bets + ' bought, ' + t.hits + ' hit' + (t.hits === 1 ? '' : 's') + (detail.length ? ' (' + detail.join(', ') + ')' : '') + ', <span class="' + (t.net >= 0 ? 'pos' : 'neg') + '">' + rand(t.net) + '</span>';
     };
     let html = '';
     for (const s of sites) {
@@ -121,7 +124,7 @@
       html += '<section class="card">' +
         '<div class="row"><div class="name">' + nice(s.name) + '<small>' + s.strategy + '</small></div><div class="profit ' + cls + '">' + rand(s.profit) + pct(s.profit, s.open) + '</div></div>' +
         '<div class="line">unit ' + randPlain(s.unit) + ' | win rate ' + (s.winRate == null ? '-' : s.winRate + '%') + ' | ' + s.wins + ' of ' + s.bets + ' bets | balance ' + randPlain(s.balance) + '</div>' +
-        '<div class="status ' + statusCls + '">' + s.status + '</div>' +
+        '<div class="status ' + statusCls + '">' + String(s.status).replace(/R(\d+)\.(\d\d)\b/g, 'R$1,$2') + '</div>' +
         '<div class="line small">' + deep + ' | rejections ' + s.rejections + ' | biggest fly ' + s.biggestCrash + 'x' + stale + '</div>' +
         '<div class="line small">max drawdown today ' + dd + ddAt + slRoom(s) + '</div>' +
         (s.lastBet ? '<div class="line small">last bet ' + hhmm(s.lastBet.time) + ': ' + randPlain(s.lastBet.stake) + ' at ' + s.lastBet.target + 'x, ' + (s.lastBet.won ? '<span class="pos">won ' + rand(s.lastBet.profit) + '</span>' : '<span class="neg">lost' + (s.lastBet.crash != null ? ', crashed at ' + s.lastBet.crash + 'x' : '') + '</span>') + '</div>' : '') +
