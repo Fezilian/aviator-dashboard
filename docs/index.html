@@ -72,7 +72,7 @@
 
 <main id="main"></main>
 <footer id="footer">connecting...</footer>
-<div style="text-align:center;color:#555;font-size:11px;margin-top:4px">numbers v11</div>
+<div style="text-align:center;color:#555;font-size:11px;margin-top:4px">numbers v12</div>
 
 <script>
 (function () {
@@ -138,7 +138,7 @@
     html += '<section class="card combined">' +
       '<div class="row"><div class="label">' + label + '</div><div class="profit ' + ccls + '">' + rand(c.profit) + pct(c.profit, openTotal) + '</div></div>' +
       '<div class="line">win rate ' + (c.winRate == null ? '-' : c.winRate + '%') + ' | ' + c.wins + ' of ' + c.bets + ' bets | rejections ' + c.rejections + ' | balance ' + randPlain(c.balance) + '</div>' +
-      '<div class="line">deposits ' + randPlain(c.deposits) + ' | against deposits ' + rand(c.vsDeposits) + '</div>' +
+      '<div class="line">put in ' + randPlain(c.deposits) + (c.withdrawn ? ' | taken out ' + randPlain(c.withdrawn) + ' | still in ' + randPlain(c.stillIn) : '') + ' | against it ' + rand(c.vsDeposits) + '</div>' +
       (c.nextMilestone ? '<div class="line">next: ' + c.nextMilestone.label + ' at ' + randPlain(c.nextMilestone.at) + ', ' + (c.nextMilestone.toGo > 0 ? randPlain(c.nextMilestone.toGo) + ' to go' : '<b class="pos">reached</b>') + '</div>' + '<div class="bar"><div class="fill" style="width:' + Math.max(0, Math.min(100, 100 * c.balance / c.nextMilestone.at)).toFixed(1) + '%"></div></div>' : '') +
       '</section>';
     $('main').innerHTML = html;
