@@ -72,7 +72,7 @@
 
 <main id="main"></main>
 <footer id="footer">connecting...</footer>
-<div style="text-align:center;color:#555;font-size:11px;margin-top:4px">numbers v12</div>
+<div style="text-align:center;color:#555;font-size:11px;margin-top:4px">numbers v13</div>
 
 <script>
 (function () {
@@ -97,9 +97,10 @@
     const slRoom = (s) => {
       if (!s.stopLoss || s.profit == null || !s.isToday) return '';
       if (s.tracking === 'stop-loss') return ' | <span class="neg">stop-loss hit</span>';
-      const room = s.stopLoss + s.profit;
+      const line = s.stopLossLine != null ? s.stopLossLine : s.open - s.stopLoss;
+      const room = s.balance - line;
       const cls = room < s.stopLoss * 0.34 ? 'warn' : '';
-      return ' | to stop-loss <b class="' + cls + '">' + randPlain(room) + '</b> (' + (100 * room / s.open).toFixed(0) + '%)';
+      return ' | to stop-loss <b class="' + cls + '">' + randPlain(room) + '</b> (' + (100 * room / s.balance).toFixed(0) + '%' + (s.stopLossFromDayHigh && s.peakBalance > s.open ? ', line ' + randPlain(line) + ' under the high ' + randPlain(s.peakBalance) : '') + ')';
     };
     // R1 tickets at 100x bought inside the night window, once the night ticket is switched on
     const nightTickets = (n) => {
