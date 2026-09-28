@@ -72,7 +72,7 @@
 
 <main id="main"></main>
 <footer id="footer">connecting...</footer>
-<div style="text-align:center;color:#555;font-size:11px;margin-top:4px">numbers v13</div>
+<div style="text-align:center;color:#555;font-size:11px;margin-top:4px">numbers v14</div>
 
 <script>
 (function () {
@@ -104,8 +104,8 @@
     };
     // R1 tickets at 100x bought inside the night window, once the night ticket is switched on
     const nightTickets = (n) => {
-      if (!n.ticketsEnabled || !n.tickets) return '';
       const t = n.tickets;
+      if (!t || (!n.ticketsEnabled && !t.bets)) return n.ticketsEnabled ? '' : ' | tickets off, window still recorded';
       if (!t.bets) return ' | <span class="warn">no tickets bought</span>';
       // a hit says what it was cashed at; the fly's own crash is only known when the plane came down within the bot's wait
       const detail = [];
