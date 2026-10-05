@@ -38,6 +38,15 @@
   .pos { color:var(--green); } .neg { color:var(--red); }
   .bar { height:6px; background:#2a2a2a; border-radius:3px; margin-top:8px; overflow:hidden; }
   .bar .fill { height:100%; background:var(--green); border-radius:3px; }
+  /* the day's path: stop-loss line on the left, zero in the middle, take-profit target on the right */
+  .goal { margin-top:6px; }
+  .goal .track { position:relative; height:5px; border-radius:3px; background:linear-gradient(to right, #3a1f1f 0 50%, #1f3a26 50% 100%); }
+  .goal .track .zero { position:absolute; left:50%; top:-2px; width:1px; height:9px; background:#666; }
+  .goal .track .fill { position:absolute; top:0; height:100%; border-radius:3px; }
+  .goal .track .fill.pos { background:var(--green); } .goal .track .fill.neg { background:var(--red); }
+  .goal .track .dot { position:absolute; top:-3px; width:11px; height:11px; margin-left:-5px; border-radius:50%; background:#eee; box-shadow:0 0 0 2px var(--card); }
+  .goal .ends { display:flex; justify-content:space-between; font-size:11px; color:var(--muted); margin-top:4px; }
+  .goal .ends .hit { color:var(--green); font-weight:600; }
   .combined .label { font-size:12px; color:var(--muted); letter-spacing:.06em; }
   footer { color:#7a7a7a; font-size:12px; text-align:center; margin-top:10px; }
   footer.bad { color:var(--red); }
@@ -113,6 +122,19 @@
       if (t.hits && t.biggest) detail.push('fly ' + t.biggest.toFixed(2) + 'x');
       return ' | tickets ' + t.bets + ' bought, ' + t.hits + ' hit' + (t.hits === 1 ? '' : 's') + (detail.length ? ' (' + detail.join(', ') + ')' : '') + ', <span class="' + (t.net >= 0 ? 'pos' : 'neg') + '">' + rand(t.net) + '</span>';
     };
+    // the day's path from the stop-loss line (left) through zero to the take-profit target (right)
+    const goal = (s) => {
+      if (!s.isToday || s.profit == null || !(s.takeProfit > 0)) return '';
+      const line = s.stopLossLine != null ? s.stopLossLine : (s.stopLoss ? s.open - s.stopLoss : null);
+      const down = line != null ? Math.max(0.01, s.balance - line - s.profit) : s.takeProfit; // Rand from zero down to the line
+      const p = s.profit;
+      const x = p >= 0 ? 50 + 50 * Math.min(1, p / s.takeProfit) : 50 - 50 * Math.min(1, -p / down);
+      const fill = p >= 0 ? '<div class="fill pos" style="left:50%;width:' + (x - 50) + '%"></div>' : '<div class="fill neg" style="left:' + x + '%;width:' + (50 - x) + '%"></div>';
+      const hit = s.tracking === 'take-profit';
+      const stopped = s.tracking === 'stop-loss';
+      return '<div class="goal"><div class="track">' + fill + '<div class="zero"></div><div class="dot" style="left:' + x + '%"></div></div>' +
+        '<div class="ends"><span>' + (stopped ? '<span class="neg">stop-loss hit</span>' : 'stop ' + rand(-(down))) + '</span><span>' + (hit ? '<span class="hit">target ' + rand(s.takeProfit) + ' reached</span>' : 'target ' + rand(s.takeProfit) + ', ' + rand(Math.max(0, s.takeProfit - p)) + ' to go') + '</span></div></div>';
+    };
     let html = '';
     for (const s of sites) {
       const cls = s.profit == null ? 'none' : s.profit >= 0 ? 'pos' : 'neg';
@@ -124,6 +146,7 @@
       const statusCls = s.ladder ? 'ladder' : s.tracking ? 'tracking' : '';
       html += '<section class="card">' +
         '<div class="row"><div class="name">' + nice(s.name) + '<small>' + s.strategy + '</small></div><div class="profit ' + cls + '">' + rand(s.profit) + pct(s.profit, s.open) + '</div></div>' +
+        goal(s) +
         '<div class="line">unit ' + randPlain(s.unit) + ' | win rate ' + (s.winRate == null ? '-' : s.winRate + '%') + ' | ' + s.wins + ' of ' + s.bets + ' bets | balance ' + randPlain(s.balance) + '</div>' +
         '<div class="status ' + statusCls + '">' + String(s.status).replace(/R(\d+)\.(\d\d)\b/g, 'R$1,$2') + '</div>' +
         '<div class="line small">' + deep + ' | rejections ' + s.rejections + ' | biggest fly ' + s.biggestCrash + 'x' + stale + '</div>' +
