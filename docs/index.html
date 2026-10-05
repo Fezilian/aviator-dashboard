@@ -81,7 +81,7 @@
 
 <main id="main"></main>
 <footer id="footer">connecting...</footer>
-<div style="text-align:center;color:#555;font-size:11px;margin-top:4px">numbers v14</div>
+<div style="text-align:center;color:#555;font-size:11px;margin-top:4px">numbers v15</div>
 
 <script>
 (function () {
@@ -133,7 +133,7 @@
       const hit = s.tracking === 'take-profit';
       const stopped = s.tracking === 'stop-loss';
       return '<div class="goal"><div class="track">' + fill + '<div class="zero"></div><div class="dot" style="left:' + x + '%"></div></div>' +
-        '<div class="ends"><span>' + (stopped ? '<span class="neg">stop-loss hit</span>' : 'stop ' + rand(-(down))) + '</span><span>' + (hit ? '<span class="hit">target ' + rand(s.takeProfit) + ' reached</span>' : 'target ' + rand(s.takeProfit) + ', ' + rand(Math.max(0, s.takeProfit - p)) + ' to go') + '</span></div></div>';
+        '<div class="ends"><span>' + (stopped ? '<span class="neg">stop-loss hit</span>' : 'stop ' + rand(-(down))) + '</span><span>' + (hit ? '<span class="hit">target ' + rand(s.takeProfit) + ' reached</span>' : stopped ? 'target was ' + rand(s.takeProfit) : 'target ' + rand(s.takeProfit) + ', ' + rand(Math.max(0, s.takeProfit - p)) + ' to go') + '</span></div></div>';
     };
     let html = '';
     for (const s of sites) {
