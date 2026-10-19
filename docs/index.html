@@ -132,8 +132,10 @@
       const fill = p >= 0 ? '<div class="fill pos" style="left:50%;width:' + (x - 50) + '%"></div>' : '<div class="fill neg" style="left:' + x + '%;width:' + (50 - x) + '%"></div>';
       const hit = s.tracking === 'take-profit';
       const stopped = s.tracking === 'stop-loss';
+      // a raised target while a loss is being recovered: say so, and where it goes back to normal
+      const boost = s.boost ? ' <span class="hint">(' + s.boost.percent + '% after ' + s.boost.losses + ' loss' + (s.boost.losses === 1 ? '' : 'es') + ', normal again at ' + rand(s.boost.mark) + ')</span>' : '';
       return '<div class="goal"><div class="track">' + fill + '<div class="zero"></div><div class="dot" style="left:' + x + '%"></div></div>' +
-        '<div class="ends"><span>' + (stopped ? '<span class="neg">stop-loss hit</span>' : 'stop ' + rand(-(down))) + '</span><span>' + (hit ? '<span class="hit">target ' + rand(s.takeProfit) + ' reached</span>' : stopped ? 'target was ' + rand(s.takeProfit) : 'target ' + rand(s.takeProfit) + ', ' + rand(Math.max(0, s.takeProfit - p)) + ' to go') + '</span></div></div>';
+        '<div class="ends"><span>' + (stopped ? '<span class="neg">stop-loss hit</span>' : 'stop ' + rand(-(down))) + '</span><span>' + (hit ? '<span class="hit">target ' + rand(s.takeProfit) + ' reached</span>' : stopped ? 'target was ' + rand(s.takeProfit) : 'target ' + rand(s.takeProfit) + ', ' + rand(Math.max(0, s.takeProfit - p)) + ' to go') + boost + '</span></div></div>';
     };
     let html = '';
     for (const s of sites) {
